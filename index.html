@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <title>Luffarschack — Five in a Row</title>
+  <meta name="description" content="A fast, Swiss-editorial 5-in-a-row (Luffarschack) web game with a 5-tier local Alpha-Beta & VCF engine and live JEV inspector.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="site-header">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div class="brand-text">
+          <h1>LUFFARSCHACK</h1>
+          <span class="brand-sub">FIVE IN A ROW · LOCAL ENGINE</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <div class="status-pill" id="header-status-pill" aria-live="polite">
+          <span class="status-dot" id="header-status-dot"></span>
+          <span id="header-status-text">YOUR TURN · X</span>
+        </div>
+        <button
+          type="button"
+          class="theme-toggle"
+          id="theme-toggle"
+          aria-label="Toggle light or dark theme"
+          title="Toggle theme (T)"
+        >
+          <svg class="icon-sun" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+            <circle cx="10" cy="10" r="3.5"></circle>
+            <line x1="10" y1="2" x2="10" y2="4.2"></line>
+            <line x1="10" y1="15.8" x2="10" y2="18"></line>
+            <line x1="2" y1="10" x2="4.2" y2="10"></line>
+            <line x1="15.8" y1="10" x2="18" y2="10"></line>
+            <line x1="4.3" y1="4.3" x2="5.9" y2="5.9"></line>
+            <line x1="14.1" y1="14.1" x2="15.7" y2="15.7"></line>
+            <line x1="15.7" y1="4.3" x2="14.1" y2="5.9"></line>
+            <line x1="5.9" y1="14.1" x2="4.3" y2="15.7"></line>
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+            <path d="M15.8 12.6A6.5 6.5 0 0 1 7.4 4.2a6.5 6.5 0 1 0 8.4 8.4Z"></path>
+          </svg>
+          <span class="theme-label" id="theme-label">Dark</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="board-column" aria-label="Game board">
+        <div class="board-frame">
+          <div class="board-topbar">
+            <div class="board-specs">
+              <span class="spec-chip" id="spec-grid">19 × 19</span>
+              <span class="spec-item">MOVE <strong id="move-count">00</strong></span>
+              <span class="spec-item">LAST <strong id="last-coord">—</strong></span>
+            </div>
+
+            <div class="zoom-controls" role="group" aria-label="Board zoom controls">
+              <button type="button" class="zoom-btn" id="zoom-out" aria-label="Zoom out" title="Zoom out">−</button>
+              <button type="button" class="zoom-readout" id="zoom-reset" title="Reset zoom to fit">100%</button>
+              <button type="button" class="zoom-btn" id="zoom-in" aria-label="Zoom in" title="Zoom in">+</button>
+            </div>
+          </div>
+
+          <div class="board-viewport" id="board-viewport">
+            <div class="board-stage" id="board-stage">
+              <div class="coord-corner" aria-hidden="true"></div>
+              <div class="coords-top" id="coords-top" aria-hidden="true"></div>
+              <div class="coords-left" id="coords-left" aria-hidden="true"></div>
+
+              <div class="grid-wrap" id="grid-wrap">
+                <div
+                  class="board-grid"
+                  id="board-grid"
+                  role="grid"
+                  aria-label="Luffarschack 19 by 19 board"
+                ></div>
+                <svg class="win-overlay" id="win-overlay" aria-hidden="true"></svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="confirm-bar" id="confirm-bar" aria-live="polite">
+            <div class="confirm-info">
+              <span class="confirm-tag" id="confirm-tag">AIM MODE</span>
+              <span class="confirm-text" id="confirm-text">Tap cell to aim</span>
+            </div>
+            <div class="confirm-actions">
+              <button type="button" class="btn-ghost btn-sm" id="confirm-cancel" disabled>Cancel</button>
+              <button type="button" class="btn-primary btn-sm" id="confirm-place" disabled>Confirm</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="control-rail" aria-label="Game controls">
+        <div class="panel status-panel">
+          <div class="panel-eyebrow">MATCH STATUS</div>
+          <div class="turn-display">
+            <div class="turn-glyph" id="turn-glyph" aria-hidden="true">X</div>
+            <div class="turn-meta">
+              <div class="turn-headline" id="status-headline">Your Turn</div>
+              <div class="turn-subline" id="status-subline">Place X to open · Center recommended</div>
+            </div>
+          </div>
+          <div class="telemetry-row">
+            <span>ENGINE <strong id="engine-ms">—</strong></span>
+            <span>DEPTH <strong id="engine-depth">—</strong></span>
+          </div>
+        </div>
+
+        <div class="panel actions-panel">
+          <div class="action-buttons">
+            <button type="button" class="btn-secondary" id="btn-undo" disabled>
+              <span>Undo</span>
+              <kbd>Z</kbd>
+            </button>
+            <button type="button" class="btn-primary" id="btn-reset">
+              <span>Reset Board</span>
+              <kbd>R</kbd>
+            </button>
+          </div>
+        </div>
+
+        <div class="panel inspector-panel" id="inspector-panel" hidden aria-live="polite">
+          <div class="inspector-header">
+            <span class="panel-eyebrow">JEV ENGINE INSPECTOR</span>
+            <span class="inspector-badge" id="inspector-mode-badge">IDLE</span>
+          </div>
+          <div class="inspector-move-row">
+            <span class="inspector-coord" id="inspector-coord">—</span>
+            <span class="inspector-summary" id="inspector-summary">Make a move to inspect candidate lines</span>
+          </div>
+          <div class="inspector-metrics">
+            <span>TIME <strong id="inspector-time">—</strong></span>
+            <span>DEPTH <strong id="inspector-depth">—</strong></span>
+            <span>NODES <strong id="inspector-nodes">—</strong></span>
+            <span>TT <strong id="inspector-tt">—</strong></span>
+          </div>
+          <div class="inspector-candidates" id="inspector-candidates"></div>
+        </div>
+
+        <div class="panel settings-panel">
+          <div class="control-group">
+            <div class="control-label">
+              <span>Grid Size</span>
+              <span class="control-hint">Square cells</span>
+            </div>
+            <div class="segmented" id="grid-selector" role="radiogroup" aria-label="Board grid size">
+              <button type="button" class="seg-btn" data-size="15" role="radio" aria-checked="false">15×15</button>
+              <button type="button" class="seg-btn is-active" data-size="19" role="radio" aria-checked="true">19×19</button>
+              <button type="button" class="seg-btn" data-size="25" role="radio" aria-checked="false">25×25</button>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <div class="control-label">
+              <span>Difficulty</span>
+              <span class="control-hint">5-Tier Engine</span>
+            </div>
+            <div class="level-list" id="difficulty-selector" role="radiogroup" aria-label="Engine difficulty level">
+              <button type="button" class="level-btn" data-level="1" role="radio" aria-checked="false">
+                <span class="level-name">1 · Casual</span>
+                <span class="level-spec">D1 · ~1 ms</span>
+              </button>
+              <button type="button" class="level-btn" data-level="2" role="radio" aria-checked="false">
+                <span class="level-name">2 · Club</span>
+                <span class="level-spec">D2 · ~5 ms</span>
+              </button>
+              <button type="button" class="level-btn is-active" data-level="3" role="radio" aria-checked="true">
+                <span class="level-name">3 · Tactical</span>
+                <span class="level-spec">D4 · ~35 ms</span>
+              </button>
+              <button type="button" class="level-btn" data-level="4" role="radio" aria-checked="false">
+                <span class="level-name">4 · Master</span>
+                <span class="level-spec">D6 · Zobrist TT</span>
+              </button>
+              <button type="button" class="level-btn" data-level="5" role="radio" aria-checked="false">
+                <span class="level-name">5 · Grandmaster</span>
+                <span class="level-spec">D6 + VCF 14p</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <div class="control-label">
+              <span>Play As</span>
+              <span class="control-hint">Turn order</span>
+            </div>
+            <div class="segmented segmented-2" id="side-selector" role="radiogroup" aria-label="Choose your mark">
+              <button type="button" class="seg-btn is-active" data-side="1" role="radio" aria-checked="true">
+                <span class="mark-badge mark-x">X</span> First
+              </button>
+              <button type="button" class="seg-btn" data-side="2" role="radio" aria-checked="false">
+                <span class="mark-badge mark-o">O</span> Second
+              </button>
+            </div>
+          </div>
+
+          <div class="control-group precision-group">
+            <div class="toggle-row">
+              <div class="toggle-copy">
+                <span class="toggle-title">Inspect Engine</span>
+                <span class="toggle-desc">Show top 8 JEV cell scores &amp; threat breakdown</span>
+              </div>
+              <button
+                type="button"
+                class="switch"
+                id="inspect-engine-toggle"
+                role="switch"
+                aria-checked="false"
+                aria-label="Toggle live engine inspector"
+              >
+                <span class="switch-thumb"></span>
+              </button>
+            </div>
+
+            <div class="toggle-row">
+              <div class="toggle-copy">
+                <span class="toggle-title">Confirm Tap</span>
+                <span class="toggle-desc">Aim first to prevent mis-taps on dense grids</span>
+              </div>
+              <button
+                type="button"
+                class="switch"
+                id="confirm-tap-toggle"
+                role="switch"
+                aria-checked="false"
+                aria-label="Toggle confirm tap mode"
+              >
+                <span class="switch-thumb"></span>
+              </button>
+            </div>
+            <p class="zoom-tip">Pinch or use <strong>+ / −</strong> to zoom; drag to pan while zoomed.</p>
+          </div>
+        </div>
+
+        <div class="panel score-panel" aria-label="Session scoreboard">
+          <div class="score-cell">
+            <span class="score-label">YOU</span>
+            <strong class="score-value" id="score-human">0</strong>
+          </div>
+          <div class="score-cell">
+            <span class="score-label">ENGINE</span>
+            <strong class="score-value" id="score-ai">0</strong>
+          </div>
+          <div class="score-cell">
+            <span class="score-label">DRAWS</span>
+            <strong class="score-value" id="score-draw">0</strong>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script defer src="engine.js"></script>
+  <script defer src="app.js"></script>
+</body>
+</html>
